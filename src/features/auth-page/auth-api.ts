@@ -1,7 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GitHubProvider from "next-auth/providers/github";
 import { Provider } from "next-auth/providers/index";
 import { hashValue } from "./helpers";
 
@@ -11,22 +10,6 @@ const configureIdentityProvider = () => {
   const adminEmails = process.env.ADMIN_EMAIL_ADDRESS?.split(",").map((email) =>
     email.toLowerCase().trim()
   );
-
-  if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
-    providers.push(
-      GitHubProvider({
-        clientId: process.env.AUTH_GITHUB_ID!,
-        clientSecret: process.env.AUTH_GITHUB_SECRET!,
-        async profile(profile) {
-          const newProfile = {
-            ...profile,
-            isAdmin: adminEmails?.includes(profile.email.toLowerCase()),
-          };
-          return newProfile;
-        },
-      })
-    );
-  }
 
   if (
     process.env.AZURE_AD_CLIENT_ID &&
@@ -41,7 +24,6 @@ const configureIdentityProvider = () => {
         async profile(profile) {
           const newProfile = {
             ...profile,
-            // throws error without this - unsure of the root cause (https://stackoverflow.com/questions/76244244/profile-id-is-missing-in-google-oauth-profile-response-nextauth)
             id: profile.sub,
             isAdmin:
               adminEmails?.includes(profile.email.toLowerCase()) ||
@@ -53,10 +35,6 @@ const configureIdentityProvider = () => {
     );
   }
 
-  // If we're in local dev, add a basic credential provider option as well
-  // (Useful when a dev doesn't have access to create app registration in their tenant)
-  // This currently takes any username and makes a user with it, ignores password
-  // Refer to: https://next-auth.js.org/configuration/providers/credentials
   if (process.env.NODE_ENV === "development") {
     providers.push(
       CredentialsProvider({
@@ -66,9 +44,6 @@ const configureIdentityProvider = () => {
           password: { label: "Password", type: "password" },
         },
         async authorize(credentials, req): Promise<any> {
-          // You can put logic here to validate the credentials and return a user.
-          // We're going to take any username and make a new user with it
-          // Create the id as the hash of the email as per userHashedId (helpers.ts)
           const username = credentials?.username || "dev";
           const email = username + "@localhost";
           const user = {
@@ -102,7 +77,6 @@ export const options: NextAuthOptions = {
       return token;
     },
     async session({ session, token, user }) {
-      console.log('Session Callback', { session, token, user });
       session.user.isAdmin = token.isAdmin as boolean;
       return session;
     },
