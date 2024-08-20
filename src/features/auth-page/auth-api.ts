@@ -102,6 +102,7 @@ export const options: NextAuthOptions = {
       return token;
     },
     async session({ session, token, user }) {
+      console.log('Session Callback', { session, token, user });
       session.user.isAdmin = token.isAdmin as boolean;
       return session;
     },
